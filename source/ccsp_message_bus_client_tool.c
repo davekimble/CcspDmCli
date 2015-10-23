@@ -70,7 +70,7 @@ param_rtt_cmp (const struct param_rtt *c1, const struct param_rtt *c2)
 
 void free_rtt_result()
 {
-	rtt_ct = 0;
+    rtt_ct = 0;
     AnscFreeMemory(rtt_result);
     rtt_result = NULL;
 
@@ -470,6 +470,9 @@ int  CCSP_Message_Bus_Send
     int ret = CCSP_Message_Bus_ERROR;
     char * res = 0;
 
+    printf("sending: %s / %s / %s / %s\n", component_id, path, interface, method);
+    fprintf(stderr, "sending: %s / %s / %s / %s\n", component_id, path, interface, method);
+
     message = dbus_message_new_method_call (component_id,
                                             path,
                                             interface,
@@ -530,19 +533,14 @@ int CCSP_Message_Bus_Send_Event
 
     /*to support daemon redundency*/
     pthread_mutex_lock(&bus_info->info_mutex);
-    for(i = 0; i < CCSP_MESSAGE_BUS_MAX_CONNECTION; i++)
+    if(bus_info->send_connection.conn )
     {
-        if(bus_info->connection[i].connected && bus_info->connection[i].conn )
-        {
-            conn = bus_info->connection[i].conn;
-            dbus_connection_ref (conn);
-            break;
-        }
-
+        conn = bus_info->send_connection.conn;
+        dbus_connection_ref (conn);
     }
     pthread_mutex_unlock(&bus_info->info_mutex);
 
-    if(i ==  CCSP_MESSAGE_BUS_MAX_CONNECTION)
+    if(!conn)
         return CCSP_MESSAGE_BUS_CANNOT_CONNECT;
 
 
@@ -681,8 +679,8 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
     parameterAttributeStruct_t valAttr[20] = {{0}};
     parameterAttributeStruct_t ** parameterAttr = NULL;
     componentStruct_t ** ppComponents = NULL;
-	int ct ;
-	long total = 0;
+    int ct ;
+    long total = 0;
     unsigned int psmType;
     char *psmValue;
     char *psmName;
@@ -699,7 +697,7 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
 
     runSteps = __LINE__;
 
-     printf(color_parametername"subsystem_prefix %s\n", subsystem_prefix);
+     printf(color_parametername"subsystem_prefix '%s'\n", subsystem_prefix);
     /* We need look for destination from CR*/
     if ( pInputCmd[0].result[0].pathname )
     {
@@ -747,7 +745,7 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
             gettimeofday(&end, NULL);
             seconds  = end.tv_sec  - start.tv_sec;
             useconds = end.tv_usec - start.tv_usec;
-            mtime_onetime = ((seconds) * 1000000 + useconds);		
+            mtime_onetime = ((seconds) * 1000000 + useconds);       
          
             if ( strncmp( pInputCmd->command, "sgetvalues"     , 4 ) == 0 )
                 printf(color_succeed"\nTotal time to look up destination component from CR: %ld microseconds.\n\n", mtime_onetime);
@@ -1294,12 +1292,15 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
         else if ( strncmp( pInputCmd->command, "sgetvalues"     , 4 ) == 0 )
         {
             i = 0;
-    		
+            
             while ( pInputCmd->result[i].pathname )
             {
                 parameterNames[i] = pInputCmd->result[i].pathname;
                 i++;
             }
+
+            printf("sending: %s | %s | %s\n", dst_componentid, dst_pathname, parameterNames[0]);
+
             gettimeofday(&start, NULL);
             ret = CcspBaseIf_getParameterValues(
                 bus_handle,
@@ -1321,11 +1322,11 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
             }
 
             gettimeofday(&end, NULL);
-			seconds  = end.tv_sec  - start.tv_sec;
-		    useconds = end.tv_usec - start.tv_usec;
-		
-		    mtime_onetime = ((seconds) * 1000000 + useconds);		
-		    
+            seconds  = end.tv_sec  - start.tv_sec;
+            useconds = end.tv_usec - start.tv_usec;
+        
+            mtime_onetime = ((seconds) * 1000000 + useconds);       
+            
             //printf("%d, size:%d.\n", __LINE__,size);
             if(ret == CCSP_SUCCESS  && size >= 1)
             {
@@ -1595,15 +1596,15 @@ int analyse_cmd(char **args, PCMD_CONTENT pInputCmd)
     char * pAccesslist = NULL;
     char * pNextlevel = NULL;
     int    index   = 0;
-	
-	//zqiu: fix crash when *args is NULL
-	if ( *args == NULL )
-		goto EXIT1;
+    
+    //zqiu: fix crash when *args is NULL
+    if ( *args == NULL )
+        goto EXIT1;
     if ( strncmp( *args, "setsub", 6 ) == 0 )
     {
          if(*(args+1) != NULL)
              strncpy(subsystem_prefix, *(args+1), sizeof(subsystem_prefix));
-         printf("subsystem_prefix %s\n", subsystem_prefix);
+         printf("subsystem_prefix '%s'\n", subsystem_prefix);
          return -3;
     }
 
@@ -1993,6 +1994,8 @@ int main(int argc, char *argv[])
         }
     }
 
+   printf("enter \n");
+
     // handle parameters
     //if ( argc <= 4 )
         //signal(SIGINT, signal_interrupt);
@@ -2097,7 +2100,7 @@ int main(int argc, char *argv[])
     }
     
     // we begin the initiation of dbus
-    ret = CCSP_Message_Bus_Init("ccsp.busclient", pCfg, &bus_handle, Ansc_AllocateMemory_Callback, Ansc_FreeMemory_Callback);
+    ret = CCSP_Message_Bus_Init(0, pCfg, &bus_handle, Ansc_AllocateMemory_Callback, Ansc_FreeMemory_Callback);
     if ( ret == -1 )
     {
         printf(color_end);
