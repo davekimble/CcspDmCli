@@ -526,24 +526,8 @@ int CCSP_Message_Bus_Send_Event
     char* arg
 )
 {
-    CCSP_MESSAGE_BUS_INFO *bus_info = (CCSP_MESSAGE_BUS_INFO *)bus_handle;
     DBusMessage *message;
-    int i;
-    DBusConnection *conn;
-
-    /*to support daemon redundency*/
-    pthread_mutex_lock(&bus_info->info_mutex);
-    if(bus_info->send_connection.conn )
-    {
-        conn = bus_info->send_connection.conn;
-        dbus_connection_ref (conn);
-    }
-    pthread_mutex_unlock(&bus_info->info_mutex);
-
-    if(!conn)
-        return CCSP_MESSAGE_BUS_CANNOT_CONNECT;
-
-
+ 
     message = dbus_message_new_signal (path, interface, event_name );
 
     if(!message)
@@ -559,10 +543,7 @@ int CCSP_Message_Bus_Send_Event
         }
     }
 
-    dbus_connection_send (conn, message, NULL);
-
-    dbus_message_unref (message);
-    return CCSP_Message_Bus_OK;
+    return CCSP_Message_Bus_Send_Signal(bus_handle, message);
 }
 
 
@@ -732,13 +713,13 @@ int apply_cmd(PCMD_CONTENT pInputCmd )
                    */
                 if ( size2 == 0 )
                 {
-                printf(color_error"Can't find destination component.\n"color_end);
+                printf(color_error"Can't find destination component - No results\n"color_end);
                     return 1;
                 }
             }
             else
             {
-            printf(color_error"Can't find destination component.\n"color_end);
+            printf(color_error"Can't find destination component - No response\n"color_end);
                 return 1;
             }     
 
