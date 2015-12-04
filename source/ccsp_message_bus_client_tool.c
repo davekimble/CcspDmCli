@@ -663,6 +663,8 @@ char *ccspReturnValueToString(unsigned long ret)
 
 }
 
+/* putting prototype here explicitly to avoid problems (esp. in 64-bit environments) */
+char*AnscCloneString(char* src_string);
 int apply_cmd(PCMD_CONTENT pInputCmd )
 {
 //    void *bus_handle2;
